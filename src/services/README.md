@@ -55,30 +55,30 @@ Adds some initial demo tasks if the storage is empty.
 
 ```typescript
 interface Task {
-  id: number;
-  text: string;
-  completed: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  id: number
+  text: string
+  completed: boolean
+  createdAt: Date
+  updatedAt: Date
 }
 ```
 
 ## Usage Example
 
 ```typescript
-import { Tasks } from "./services/tasks";
+import { Tasks } from './services/tasks'
 
 // Create a new task
-const newTask = await Tasks.createTask("Learn React");
+const newTask = await Tasks.createTask('Learn React')
 
 // Get all tasks
-const allTasks = await Tasks.getAllTasks();
+const allTasks = await Tasks.getAllTasks()
 
 // Toggle task completion
-const updatedTask = await Tasks.toggleTask(newTask.id);
+const updatedTask = await Tasks.toggleTask(newTask.id)
 
 // Delete a task
-await Tasks.deleteTask(newTask.id);
+await Tasks.deleteTask(newTask.id)
 ```
 
 ## Error Handling
@@ -93,8 +93,8 @@ Always wrap API calls in try-catch blocks:
 
 ```typescript
 try {
-  const task = await Tasks.createTask("New task");
+  const task = await Tasks.createTask('New task')
 } catch (error) {
-  console.error("Failed to create task:", error.message);
+  console.error('Failed to create task:', error.message)
 }
 ```

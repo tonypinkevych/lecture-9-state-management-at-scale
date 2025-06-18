@@ -1,10 +1,5 @@
-import React, { useState } from "react";
-
-interface Task {
-  id: number;
-  text: string;
-  completed: boolean;
-}
+import React, { ReactNode, useCallback, useEffect, useState } from "react";
+import { Task, tasksService } from "./services/tasks";
 
 // Header Component
 const Header = () => (
@@ -23,9 +18,15 @@ interface TaskInputProps {
   inputValue: string;
   onInputChange: (value: string) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  loading?: boolean;
 }
 
-const TaskInput = ({ inputValue, onInputChange, onSubmit }: TaskInputProps) => (
+const TaskInput = ({
+  inputValue,
+  onInputChange,
+  onSubmit,
+  loading = false,
+}: TaskInputProps) => (
   <form onSubmit={onSubmit} className="mb-8">
     <div className="flex gap-3">
       <input
@@ -33,13 +34,22 @@ const TaskInput = ({ inputValue, onInputChange, onSubmit }: TaskInputProps) => (
         value={inputValue}
         onChange={(e) => onInputChange(e.target.value)}
         placeholder="What needs to be done?"
-        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
+        disabled={loading}
+        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all duration-200 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
       />
       <button
         type="submit"
-        className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 active:scale-95 font-medium shadow-lg hover:shadow-xl"
+        disabled={loading || !inputValue.trim()}
+        className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 active:scale-95 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
       >
-        Add
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Adding...
+          </div>
+        ) : (
+          "Add"
+        )}
       </button>
     </div>
   </form>
@@ -48,22 +58,23 @@ const TaskInput = ({ inputValue, onInputChange, onSubmit }: TaskInputProps) => (
 // Task Item Component
 interface TaskItemProps {
   task: Task;
-  index: number;
-  onToggle: (id: number) => void;
-  onDelete: (id: number) => void;
+  onToggle: (id: number) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  loading?: boolean;
 }
 
-const TaskItem = ({ task, index, onToggle, onDelete }: TaskItemProps) => (
-  <div
-    className="group flex items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl hover:bg-white/80 transition-all duration-300 border border-white/30 hover:border-white/50 shadow-sm hover:shadow-md transform hover:-translate-y-1 animate-slide-in"
-    style={{
-      animationDelay: `${index * 100}ms`,
-    }}
-  >
+const TaskItem = ({
+  task,
+  onToggle,
+  onDelete,
+  loading = false,
+}: TaskItemProps) => (
+  <div className="group flex items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl hover:bg-white/80 transition-all duration-300 border border-white/30 hover:border-white/50 shadow-sm hover:shadow-md transform hover:-translate-y-1 animate-slide-in">
     <div className="flex items-center gap-4 flex-1">
       <button
         onClick={() => onToggle(task.id)}
-        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
+        disabled={loading}
+        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
           task.completed
             ? "bg-gradient-to-r from-green-400 to-emerald-500 border-transparent text-white shadow-lg"
             : "border-gray-300 hover:border-indigo-400 hover:bg-indigo-50"
@@ -91,7 +102,8 @@ const TaskItem = ({ task, index, onToggle, onDelete }: TaskItemProps) => (
     </div>
     <button
       onClick={() => onDelete(task.id)}
-      className="ml-3 p-2 text-gray-400 hover:text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100 transform hover:scale-110 rounded-lg hover:bg-red-50"
+      disabled={loading}
+      className="ml-3 p-2 text-gray-400 hover:text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100 transform hover:scale-110 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
     >
       <svg
         className="w-5 h-5"
@@ -113,21 +125,35 @@ const TaskItem = ({ task, index, onToggle, onDelete }: TaskItemProps) => (
 // Task List Component
 interface TaskListProps {
   tasks: Task[];
-  onToggle: (id: number) => void;
-  onDelete: (id: number) => void;
+  onToggle: (id: number) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+  loading?: boolean;
 }
 
-const TaskList = ({ tasks, onToggle, onDelete }: TaskListProps) => (
+const TaskList = ({
+  tasks,
+  onToggle,
+  onDelete,
+  loading = false,
+}: TaskListProps) => (
   <div className="space-y-3">
-    {tasks.map((task, index) => (
+    {tasks.map((task) => (
       <TaskItem
         key={task.id}
         task={task}
-        index={index}
         onToggle={onToggle}
         onDelete={onDelete}
+        loading={loading}
       />
     ))}
+  </div>
+);
+
+// Loading State Component
+const LoadingState = () => (
+  <div className="text-center py-12">
+    <div className="w-16 h-16 mx-auto mb-4 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
+    <p className="text-gray-500 text-lg font-medium">Loading tasks...</p>
   </div>
 );
 
@@ -156,30 +182,70 @@ const EmptyState = () => (
   </div>
 );
 
-// Progress Component
-interface ProgressProps {
-  tasks: Task[];
+// Error State Component
+interface ErrorStateProps {
+  error: string;
+  onRetry: () => void;
 }
 
-const Progress = ({ tasks }: ProgressProps) => {
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const totalCount = tasks.length;
-  const percentage =
-    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+const ErrorState = ({ error, onRetry }: ErrorStateProps) => (
+  <div className="text-center py-8">
+    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-red-100 to-pink-100 rounded-full flex items-center justify-center">
+      <svg
+        className="w-8 h-8 text-red-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    </div>
+    <p className="text-red-500 text-lg font-medium mb-2">
+      Something went wrong
+    </p>
+    <p className="text-gray-400 text-sm mb-4">{error}</p>
+    <button
+      onClick={onRetry}
+      className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+    >
+      Try Again
+    </button>
+  </div>
+);
+
+// Progress Component
+interface ProgressProps {
+  stats: {
+    total: number;
+    completed: number;
+    pending: number;
+    completionRate: number;
+  };
+}
+
+const Progress = ({ stats }: ProgressProps) => {
+  const { total, completed, completionRate } = stats;
 
   return (
     <div className="mt-6 pt-4 border-t border-gray-200/50">
       <div className="flex justify-between items-center text-sm text-gray-500">
         <span>
-          {completedCount} of {totalCount} completed
+          {completed} of {total} completed
         </span>
-        <span className="text-indigo-500 font-medium">{percentage}% done</span>
+        <span className="text-indigo-500 font-medium">
+          {completionRate}% done
+        </span>
       </div>
       <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
         <div
           className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500"
           style={{
-            width: `${percentage}%`,
+            width: `${completionRate}%`,
           }}
         ></div>
       </div>
@@ -187,59 +253,144 @@ const Progress = ({ tasks }: ProgressProps) => {
   );
 };
 
+const Container = ({ children }: { children: ReactNode }) => (
+  <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center justify-center p-4">
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/20">
+      {children}
+    </div>
+  </div>
+);
+
 // Main App Component
 function App() {
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total: 0,
+    completed: 0,
+    pending: 0,
+    completionRate: 0,
+  });
 
-  const addTask = (e: React.FormEvent<HTMLFormElement>) => {
+  const fetchTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      const fetchedTasks = await tasksService.getAllTasks();
+      setTasks(fetchedTasks);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const taskStats = await tasksService.getTaskStats();
+      setStats(taskStats);
+    } catch (err) {
+      console.error("Failed to fetch stats:", err);
+    }
+  }, []);
+
+  const addTask = useCallback(
+    async (text: string) => {
+      const newTask = await tasksService.createTask(text);
+      setTasks((prev) => [...prev, newTask]);
+      await fetchStats();
+    },
+    [fetchStats]
+  );
+
+  const toggleTask = useCallback(
+    async (id: number) => {
+      const updatedTask = await tasksService.toggleTask(id);
+      setTasks((prev) =>
+        prev.map((task) => (task.id === id ? updatedTask : task))
+      );
+      await fetchStats();
+    },
+    [fetchStats]
+  );
+
+  const deleteTask = useCallback(
+    async (id: number) => {
+      await tasksService.deleteTask(id);
+      setTasks((prev) => prev.filter((task) => task.id !== id));
+      await fetchStats();
+    },
+    [fetchStats]
+  );
+
+  // Initialize tasks on mount
+  useEffect(() => {
+    const initializeTasks = async () => {
+      await fetchTasks();
+      await fetchStats();
+    };
+
+    initializeTasks();
+  }, [fetchTasks, fetchStats]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (inputValue.trim()) {
-      setTasks([
-        ...tasks,
-        { id: Date.now(), text: inputValue.trim(), completed: false },
-      ]);
-      setInputValue("");
+    if (inputValue.trim() && !isSubmitting) {
+      try {
+        setIsSubmitting(true);
+        await addTask(inputValue);
+        setInputValue("");
+      } catch (err) {
+        // Error is handled by the hook
+        console.error("Failed to add task:", err);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  const toggleTask = (id: number) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+  const handleToggle = async (id: number) => {
+    try {
+      await toggleTask(id);
+    } catch (err) {
+      console.error("Failed to toggle task:", err);
+    }
   };
 
-  const deleteTask = (id: number) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteTask(id);
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center justify-center p-4">
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-lg border border-white/20">
-        <Header />
+    <Container>
+      <Header />
 
-        <TaskInput
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          onSubmit={addTask}
-        />
+      <TaskInput
+        inputValue={inputValue}
+        onInputChange={setInputValue}
+        onSubmit={handleSubmit}
+        loading={isSubmitting}
+      />
 
-        {tasks.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
-            <TaskList
-              tasks={tasks}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-            />
-            <Progress tasks={tasks} />
-          </>
-        )}
-      </div>
-    </div>
+      {loading ? (
+        <LoadingState />
+      ) : tasks.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          <TaskList
+            tasks={tasks}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            loading={isSubmitting}
+          />
+          <Progress stats={stats} />
+        </>
+      )}
+    </Container>
   );
 }
 
